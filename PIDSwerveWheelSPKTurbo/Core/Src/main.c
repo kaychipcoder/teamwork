@@ -21,7 +21,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "PID.h"
+#include "string.h"
+#include "stdlib.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -35,6 +37,101 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+/* ---------------------------Begin: General Macro----------------------------*/
+
+#define __SecPerMin	60
+
+/* ---------------------------End: General Macro------------------------------*/
+
+/* ---------------------------Begin: Initial Macro----------------------------*/
+
+#define AtHome 0
+#define OutHome 1
+#define IntialFindingSpeed 20
+#define AccurateFindingSpeed 2
+#define FindingDegreeAboveLimit 180
+#define FindingDegreeBelowLimit -180
+#define AccurateFindingDegreeAboveLimit 10
+#define AccurateFindingDegreeBelowLimit -10
+#define IntialState 0
+#define IntialStopAndResetState 1
+#define AccurateFindingState 2
+#define AccurateStopAndResetState 3
+#define EndState 4
+
+/* ---------------------------End: Initial Macro------------------------------*/
+
+/* ------------------------------------------------------------------------------------------------------------------*/
+
+/* ---------------------------Begin: BLDC Macro--------------------------------*/
+
+#define BLDCDeltaT 0.001
+#define __BLDCPPR 0	// undefined
+#define __BLDCGearRatio 0	// undefined
+
+/* ---------------------------End: BLDC Macro----------------------------------*/
+
+/* ---------------------------Begin: PID BLDC Macro----------------------------*/
+
+#define BLDCPropotional 0	// undefined
+#define BLDCIntergral 0	// undefined
+#define BLDCDerivative 0	// undefined
+#define BLDCAlpha 0	// undefined
+#define BLDCDeltaT 0.001
+#define BLDCClockWise 1
+#define BLDCCounterClockWise 0
+#define BLDCIntergralAboveLimit 1000
+#define BLDCIntergralBelowLimit -1000
+#define BLDCSumAboveLimit 1000
+#define BLDCSumBelowLimit -1000
+
+double target_BLDC_Speed;
+
+/* ---------------------------End: PID BLDC Macro------------------------------*/
+
+/* ---------------------------Begin: DC Macro----------------------------------*/
+
+#define DCDeltaT 0.001
+#define __DCPPR 0	// undefined
+#define __DCGearRatio 0	// undefined
+
+/* ---------------------------End: DC Macro------------------------------------*/
+
+/* ---------------------------Begin: PID DC Macro (SPEED)----------------------*/
+
+#define DC_SpeedPropotional 0	// undefined
+#define DC_SpeedIntergral 0	// undefined
+#define DC_SpeedDerivative 0	// undefined
+#define DC_SpeedAlpha 0	// undefined
+#define DC_SpeedDeltaT 0.001
+#define DC_SpeedStop 0
+#define DC_SpeedIntergralAboveLimit 1000
+#define DC_SpeedIntergralBelowLimit -1000
+#define DC_SpeedSumAboveLimit 1000
+#define DC_SpeedSumBelowLimit -1000
+
+double target_DC_Speed;
+
+/* ---------------------------End: PID DC Macro (SPEED)------------------------*/
+
+/* ---------------------------Begin: PID DC Macro (POSITION)-------------------*/
+
+#define DC_PositionPropotional 0
+#define DC_PositionIntergral 0
+#define DC_PositionDerivative 0
+#define DC_PositionAlpha 0
+#define DC_PositionDeltaT 0.001
+#define DC_PositionIntergralAboveLimit 1000
+#define DC_PositionIntergralBelowLimit -1000
+#define DC_PositionSumAboveLimit 1000
+#define DC_PositionSumBelowLimit -1000
+#define FilterAlpha 0
+
+double target_DC_Position;
+
+/* ---------------------------End: PID DC Macro (POSITION)---------------------*/
+
+/* ------------------------------------------------------------------------------------------------------------------*/
 
 /* USER CODE END PM */
 
@@ -46,6 +143,34 @@ TIM_HandleTypeDef htim4;
 UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
+/* --------------------------Begin: Home Variables----------------------------*/
+
+uint8_t HomeState;
+uint8_t RunState;
+uint8_t IntialSpeed;
+uint8_t HomeFound;
+uint8_t TestCommand;
+int TestCommand2;
+
+/* --------------------------End: Home Variables------------------------------*/
+
+/* --------------------------Begin: Encoder Read Variables--------------------*/
+
+int8_t RotateState = 1;
+
+/* --------------------------End: Encoder Read Variables----------------------*/
+
+PID_Param PID_BLDC;
+PID_Param PID_DC_SPEED;
+PID_Param PID_DC_POSITION;
+
+EncoderRead ENC_BLDC;
+EncoderRead ENC_DC;
+
+MotorDrive BLDC;
+MotorDrive DC;
+
+/* ------------------------------------------------------------------------------------------------------------------*/
 
 /* USER CODE END PV */
 
@@ -98,6 +223,18 @@ int main(void)
   MX_TIM4_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
+  HAL_TIM_Encoder_Start_IT(&htim3, TIM_CHANNEL_ALL);
+  HAL_TIM_Encoder_Start_IT(&htim4, TIM_CHANNEL_ALL);
+
+  HAL_Delay(1000);
+
+  EncoderSetting(&ENC_BLDC, &htim3, __BLDCPPR * __BLDCGearRatio, BLDCDeltaT);
+  EncoderSetting(&ENC_DC, &htim4, __DCPPR * __DCGearRatio, DCDeltaT);
+
+  Pid_SetParam(&PID_BLDC, BLDCPropotional, BLDCIntergral, BLDCDerivative, BLDCAlpha, BLDCDeltaT, BLDCIntergralAboveLimit, BLDCIntergralBelowLimit, BLDCSumAboveLimit, BLDCSumBelowLimit);
+  Pid_
 
   /* USER CODE END 2 */
 
