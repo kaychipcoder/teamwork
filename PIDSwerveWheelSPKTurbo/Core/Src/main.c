@@ -160,6 +160,48 @@ int8_t RotateState = 1;
 
 /* --------------------------End: Encoder Read Variables----------------------*/
 
+/* --------------------------Begin: PID SPEED Variables-----------------------*/
+
+double Speed_kp;
+double Speed_ki;
+double Speed_kd;
+double Speed_alpha;
+double Speed_filter;
+double Speed_error;
+double Speed_uP;
+double Speed_uI;
+double Speed_uD;
+double Speed_u;
+double Speed_sumAboveLimit;
+double Speed_sumBelowLimit;
+double vel;
+double pre_vel;
+double cntX4;
+double cnt;
+double pre_cnt;
+double target_speed;
+
+/* --------------------------End: PID SPEED Variables-------------------------*/
+
+/* --------------------------Begin: PID POSITION Variables--------------------*/
+
+double Position_kp;
+double Position_ki;
+double Position_kd;
+double Position_alpha;
+double Position_filter;
+double Position_error;
+double Position_uP;
+double Position_uI;
+double Position_uD;
+double Position_u;
+double Position_sumAboveLimit;
+double Position_sumBelowLimit;
+
+double target_position;
+
+/* --------------------------End: PID POSITION Variables----------------------*/
+
 PID_Param PID_BLDC;
 PID_Param PID_DC_SPEED;
 PID_Param PID_DC_POSITION;
@@ -234,7 +276,8 @@ int main(void)
   EncoderSetting(&ENC_DC, &htim4, __DCPPR * __DCGearRatio, DCDeltaT);
 
   Pid_SetParam(&PID_BLDC, BLDCPropotional, BLDCIntergral, BLDCDerivative, BLDCAlpha, BLDCDeltaT, BLDCIntergralAboveLimit, BLDCIntergralBelowLimit, BLDCSumAboveLimit, BLDCSumBelowLimit);
-  Pid_
+  Pid_SetParam(&PID_DC_SPEED, DC_SpeedPropotional, DC_SpeedIntergral, DC_SpeedDerivative, DC_SpeedAlpha, DC_SpeedDeltaT, DC_SpeedIntergralAboveLimit, DC_SpeedIntergralBelowLimit, DC_SpeedSumAboveLimit, DC_SpeedSumBelowLimit);
+  Pid_SetParam(&PID_DC_POSITION, DC_PositionPropotional, DC_PositionIntergral, DC_PositionDerivative, DC_PositionAlpha, DC_PositionDeltaT, DC_PositionIntergralAboveLimit, DC_PositionIntergralBelowLimit, DC_PositionSumAboveLimit, DC_PositionSumBelowLimit);
 
   /* USER CODE END 2 */
 
@@ -300,6 +343,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 0 */
 
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
 
@@ -307,11 +351,20 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
+  htim2.Init.Prescaler = 72-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 65535;
+  htim2.Init.Period = 1000-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
   if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
@@ -353,7 +406,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 0 */
 
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_Encoder_InitTypeDef sConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
 
   /* USER CODE BEGIN TIM3_Init 1 */
@@ -365,12 +418,16 @@ static void MX_TIM3_Init(void)
   htim3.Init.Period = 1000-1;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter = 0;
+  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter = 0;
+  if (HAL_TIM_Encoder_Init(&htim3, &sConfig) != HAL_OK)
   {
     Error_Handler();
   }
@@ -398,7 +455,7 @@ static void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 0 */
 
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_Encoder_InitTypeDef sConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
 
   /* USER CODE BEGIN TIM4_Init 1 */
@@ -410,12 +467,16 @@ static void MX_TIM4_Init(void)
   htim4.Init.Period = 1000-1;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter = 0;
+  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter = 0;
+  if (HAL_TIM_Encoder_Init(&htim4, &sConfig) != HAL_OK)
   {
     Error_Handler();
   }
